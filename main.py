@@ -30,6 +30,48 @@ class Chunk:
               "\nblueX: ", blueX,
               "\nblueY: ", blueY)
 
+    def decode_IHDR_chunk(self):
+        print(self.data)
+        width = bytes_to_int(self.data[0:4])
+        height = bytes_to_int(self.data[4:8])
+        bit_depth = ""
+        color_type = ""
+        compression_method = ""
+        filter_method = ""
+        interlance_method = ""
+        match self.data[9]:
+            case 0:
+                color_type = "Grayscale"
+            case 2:
+                color_type = "Truecolor"
+            case 3:
+                color_type = "Indexed"
+            case 4:
+                color_type = "Grayscale and alpha"
+            case 6:
+                color_type = "Truecolor and alpha"
+        
+        match self.data[11]:
+            case 0:
+                filter_method = "None"
+            case 1:
+                filter_method = "Sub"
+            case 2:
+                filter_method = "Up"
+            case 3:
+                filter_method = "Average"
+            case 4:
+                filter_method = "Paeth"
+        
+        match self.data[12]:
+            case 0:
+                interlance_method = "no interlance"
+            case 1:
+                interlance_method = "Adam7 interlance"
+
+        print ("Szerokosc obrazu: ", width, "px",
+               "\nWysokosc obrazu: ", height,"px")
+
     def decode_gAMA_chunk(self):
         print("Informacje zawarte w chunku gAMA")
         chunk_gamma = bytes_to_int(self.data)/100000
@@ -114,6 +156,8 @@ if __name__ == "__main__":
     for chunk in chunks_list:
         print(chunk.printInfo())
         match chunk.name:
+            case "IHDR":
+                chunk.decode_IHDR_chunk()
             case "cHRM":
                 chunk.decode_cHRM_chunk()
             case "gAMA":
