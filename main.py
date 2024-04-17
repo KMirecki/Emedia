@@ -1,5 +1,3 @@
-import numpy as np
-
 class Chunk:
     def __init__(self, length, name, data, checksum):
         self.length = length
@@ -31,14 +29,15 @@ class Chunk:
               "\nblueY: ", blueY)
 
     def decode_IHDR_chunk(self):
-        print(self.data)
+        #print(self.data)
+        print("Informacje zawarte w chunku IHDR")
         width = bytes_to_int(self.data[0:4])
         height = bytes_to_int(self.data[4:8])
-        bit_depth = ""
         color_type = ""
         compression_method = ""
         filter_method = ""
         interlance_method = ""
+
         match self.data[9]:
             case 0:
                 color_type = "Grayscale"
@@ -51,6 +50,15 @@ class Chunk:
             case 6:
                 color_type = "Truecolor and alpha"
         
+        #niepotwierdzone
+        match self.data[10]:
+            case 0:
+                compression_method = "Brak kompresji"
+            case 1:
+                compression_method = "Kompresja LZ77 z kodowaniem kanalow filtracji"
+            case 2:
+                compression_method = "Kompresja LZ77 z kodowaniem kanalow filtracji i strategia kompresji danych"
+
         match self.data[11]:
             case 0:
                 filter_method = "None"
@@ -70,7 +78,12 @@ class Chunk:
                 interlance_method = "Adam7 interlance"
 
         print ("Szerokosc obrazu: ", width, "px",
-               "\nWysokosc obrazu: ", height,"px")
+               "\nWysokosc obrazu: ", height,"px",
+               "\nBit depth (głebia bitowa): ", self.data[8], "bit",
+               "\nTyp koloru: ", color_type,
+               "\nMetoda kompresji: ",compression_method,
+               "\nMetoda filtrowania: ",filter_method,
+               "\nInterlace method (sposob renderowania obrazu): ",interlance_method)
 
     def decode_gAMA_chunk(self):
         print("Informacje zawarte w chunku gAMA")
@@ -79,12 +92,24 @@ class Chunk:
         real_gamma = round((1/chunk_gamma),3)
         print("Faktyczna wartość gamma: ", real_gamma)
 
-    def decode_tEXT_chunk(self):
+    def decode_tEXt_chunk(self):
         print("Informacje zawarte w chunku tEXT")
+        text=""
+        for byte in self.data:
+            text+=chr(byte)
+        print(text)
     
     def decode_bKGD_chunk(self):
         print("Informacje zawarte w chunku bKGD")
-        print(self.data)
+        match len(self.data):
+            case 1:
+                print("Palette index: ", int.from_bytes(self.data))
+            case 2:
+                print("Gray: ", int.from_bytes(self.data))
+            case 6:
+                print("Red: ", int.from_bytes(self.data[0:2]),
+                      "\nGreen: ", int.from_bytes(self.data[2:4]),
+                      "\nBlue: ", int.from_bytes(self.data[4:6]))    
     
     def decode_tIME_chunk(self):
         print("Informacje zawarte w chunku tIME")
@@ -93,6 +118,12 @@ class Chunk:
         print("Ostatnia modyfikacja pliku: ",
               self.data[3],"/",day,"/",year," ",
               self.data[4],":",self.data[5],":",self.data[6])
+    
+    def decode_IEND_chunk(self):
+        print(self.length)
+        print(self.name)
+        #do obliczenia checksuma
+        print(self.checksum)
 
 
 def save_decimal_data(png_file):
@@ -149,20 +180,26 @@ if __name__ == "__main__":
     png_file = 'PNG_transparency_demonstration_1.png'
     dec_data = save_decimal_data(png_file)
     if(dec_data[:8]==[137, 80, 78, 71, 13, 10, 26, 10]):
-        print("startowy chunk png", dec_data[:8],"\n")  
-    #chunk_decoder(dec_data[8:])
-    chunks_list=[]
-    chunks_list = chunk_decoder(dec_data[8:],chunks_list)
-    for chunk in chunks_list:
-        print(chunk.printInfo())
-        match chunk.name:
-            case "IHDR":
-                chunk.decode_IHDR_chunk()
-            case "cHRM":
-                chunk.decode_cHRM_chunk()
-            case "gAMA":
-                chunk.decode_gAMA_chunk()
-            case "bKGD":
-                chunk.decode_bKGD_chunk()
-            case "tIME":
-                chunk.decode_tIME_chunk()
+        print("Wartosc pierwszych 8 bajtow pliku:\n", dec_data[0:8])  
+        #chunk_decoder(dec_data[8:])
+        chunks_list=[]
+        chunks_list = chunk_decoder(dec_data[8:],chunks_list)
+        for chunk in chunks_list:
+            print(chunk.printInfo())
+            match chunk.name:
+                case "IHDR":
+                    chunk.decode_IHDR_chunk()
+                case "cHRM":
+                    chunk.decode_cHRM_chunk()
+                case "gAMA":
+                    chunk.decode_gAMA_chunk()
+                case "bKGD":
+                    chunk.decode_bKGD_chunk()
+                case "tIME":
+                    chunk.decode_tIME_chunk()
+                case "tEXt":
+                    chunk.decode_tEXt_chunk()
+                case "IEND":
+                    chunk.decode_IEND_chunk()
+    else:
+        raise TypeError("File is not a png")
