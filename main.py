@@ -1,4 +1,5 @@
 import random
+
 class Chunk:
     def __init__(self, length, name, length_translated, name_translated, data, checksum):
         self.length_translated = length_translated
@@ -11,6 +12,14 @@ class Chunk:
     def printInfo(self):
         return "\nDługość chunku:\t" + str(self.length_translated) + "\nNazwa chunku:\t" + str(self.name_translated)
         #+ "\nSuma kontrolna CRC32:\t" + str(self.checksum)
+    
+    def printBytes(self):
+        bytes_list = []
+        bytes_list.extend(self.length)
+        bytes_list.extend(self.name)
+        bytes_list.extend(self.data)
+        bytes_list.extend(self.checksum)
+        return bytes_list
 
     def decode_cHRM_chunk(self):
         print("Informacje zawarte w chunku cHRM")
@@ -125,16 +134,6 @@ class Chunk:
     
     def decode_IEND_chunk(self):
         print("Zawartosc chunka IEND")
-        print(self.length, self.name, self.checksum)
-
-    def data_anonymization(self):
-        new_data = []
-        for byte in self.data:
-            byte = random.randint(0,255)
-            new_data.append(byte)
-        self.data=new_data
-        print(new_data)
-        return self.data
 
 def save_decimal_data(png_file):
     decimal_data = []
@@ -188,6 +187,23 @@ def chunk_decoder(chunk, chunks_list):
         chunk_decoder(remaining_chunk, chunks_list)
     return chunks_list
 
+def data_anonymization(chunks_list, chunks_list_anon):
+        #new_data = []
+        #for byte in self.data:
+        #    byte = random.randint(0,255)
+        #    new_data.append(byte)
+        #self.data=new_data
+        #print(new_data)
+        #return self.data
+        for chunk in chunks_list:
+            if(chunk.name_translated=="IHDR" or chunk.name_translated=="PLTE"
+               or chunk.name_translated=="IDAT" or chunk.name_translated=="IEND"):
+                chunks_list_anon.extend(chunk.length)
+                chunks_list_anon.extend(chunk.name)
+                chunks_list_anon.extend(chunk.data)
+                chunks_list_anon.extend(chunk.checksum)
+        return chunks_list_anon
+
 if __name__ == "__main__":
     png_file = 'PNG_transparency_demonstration_1.png'
     dec_data = save_decimal_data(png_file)
@@ -195,24 +211,35 @@ if __name__ == "__main__":
         print("Wartosc pierwszych 8 bajtow pliku:\n", dec_data[0:8])  
         #chunk_decoder(dec_data[8:])
         chunks_list=[]
+        chunks_list_anon = []
         chunks_list = chunk_decoder(dec_data[8:],chunks_list)
         for chunk in chunks_list:
             print(chunk.printInfo())
             match chunk.name_translated:
                 case "IHDR":
                     chunk.decode_IHDR_chunk()
+                    print(chunk.printBytes())
                 case "cHRM":
                     chunk.decode_cHRM_chunk()
+                    print(chunk.printBytes())
                 case "gAMA":
                     chunk.decode_gAMA_chunk()
+                    print(chunk.printBytes())
                 case "bKGD":
                     chunk.decode_bKGD_chunk()
+                    print(chunk.printBytes())
                 case "tIME":
                     chunk.decode_tIME_chunk()
+                    print(chunk.printBytes())
                 case "tEXt":
                     #chunk.data_anonymization()
                     chunk.decode_tEXt_chunk()
+                    print(chunk.printBytes())
                 case "IEND":
                     chunk.decode_IEND_chunk()
+                    print(chunk.printBytes())
+
+        #chunks_list_anon = data_anonymization(chunks_list, chunks_list_anon)
+        #print("\n",chunks_list_anon)
     else:
         raise TypeError("File is not a png")
