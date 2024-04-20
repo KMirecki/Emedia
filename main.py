@@ -1,3 +1,4 @@
+import random
 class Chunk:
     def __init__(self, length, name, length_translated, name_translated, data, checksum):
         self.length_translated = length_translated
@@ -100,6 +101,7 @@ class Chunk:
         for byte in self.data:
             text+=chr(byte)
         print(text)
+        #print(self.data)
     
     def decode_bKGD_chunk(self):
         print("Informacje zawarte w chunku bKGD")
@@ -125,6 +127,14 @@ class Chunk:
         print("Zawartosc chunka IEND")
         print(self.length, self.name, self.checksum)
 
+    def data_anonymization(self):
+        new_data = []
+        for byte in self.data:
+            byte = random.randint(0,255)
+            new_data.append(byte)
+        self.data=new_data
+        print(new_data)
+        return self.data
 
 def save_decimal_data(png_file):
     decimal_data = []
@@ -200,6 +210,7 @@ if __name__ == "__main__":
                 case "tIME":
                     chunk.decode_tIME_chunk()
                 case "tEXt":
+                    #chunk.data_anonymization()
                     chunk.decode_tEXt_chunk()
                 case "IEND":
                     chunk.decode_IEND_chunk()
