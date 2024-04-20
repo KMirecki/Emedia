@@ -1,12 +1,14 @@
 class Chunk:
-    def __init__(self, length, name, data, checksum):
+    def __init__(self, length, name, length_translated, name_translated, data, checksum):
+        self.length_translated = length_translated
+        self.name_translated = name_translated
         self.length = length
         self.name = name
         self.data = data
         self.checksum = checksum
     
     def printInfo(self):
-        return "\nDługość chunku:\t" + str(self.length) + "\nNazwa chunku:\t" + str(self.name)
+        return "\nDługość chunku:\t" + str(self.length_translated) + "\nNazwa chunku:\t" + str(self.name_translated)
         #+ "\nSuma kontrolna CRC32:\t" + str(self.checksum)
 
     def decode_cHRM_chunk(self):
@@ -120,10 +122,8 @@ class Chunk:
               self.data[4],":",self.data[5],":",self.data[6])
     
     def decode_IEND_chunk(self):
-        print(self.length)
-        print(self.name)
-        #do obliczenia checksuma
-        print(self.checksum)
+        print("Zawartosc chunka IEND")
+        print(self.length, self.name, self.checksum)
 
 
 def save_decimal_data(png_file):
@@ -164,29 +164,31 @@ def bytes_to_int(chunk):
 def chunk_decoder(chunk, chunks_list):
     if(len(chunk)>=12):
         #chunk_info = ""
-        length = chunk_length(chunk[0:4])
+        length = chunk[0:4]
+        length_translated = chunk_length(chunk[0:4])
         #data_length=length-12
-        name = chunk_name(chunk[4:8])
-        data = chunk[8:length-4]
-        checksum = chunk[length-4:length]
-        new_chunk = Chunk(length,name,data,checksum)
+        name = chunk[4:8]
+        name_translated = chunk_name(chunk[4:8])
+        data = chunk[8:length_translated-4]
+        checksum = chunk[length_translated-4:length_translated]
+        new_chunk = Chunk(length,name,length_translated,name_translated,data,checksum)
         chunks_list.append(new_chunk)
         #chunk_info+="dlugosc chunku "+str(length)+" nazwa chunku "+str(name)
-        remaining_chunk=chunk[length:]
+        remaining_chunk=chunk[length_translated:]
         chunk_decoder(remaining_chunk, chunks_list)
     return chunks_list
 
 if __name__ == "__main__":
     png_file = 'PNG_transparency_demonstration_1.png'
     dec_data = save_decimal_data(png_file)
-    if(dec_data[:8]==[137, 80, 78, 71, 13, 10, 26, 10]):
+    if(dec_data[0:8]==[137, 80, 78, 71, 13, 10, 26, 10]):
         print("Wartosc pierwszych 8 bajtow pliku:\n", dec_data[0:8])  
         #chunk_decoder(dec_data[8:])
         chunks_list=[]
         chunks_list = chunk_decoder(dec_data[8:],chunks_list)
         for chunk in chunks_list:
             print(chunk.printInfo())
-            match chunk.name:
+            match chunk.name_translated:
                 case "IHDR":
                     chunk.decode_IHDR_chunk()
                 case "cHRM":
