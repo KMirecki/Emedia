@@ -1,4 +1,4 @@
-import random
+import json
 
 class Chunk:
     def __init__(self, length, name, length_translated, name_translated, data, checksum):
@@ -65,23 +65,25 @@ class Chunk:
         #niepotwierdzone
         match self.data[10]:
             case 0:
-                compression_method = "Brak kompresji"
-            case 1:
-                compression_method = "Kompresja LZ77 z kodowaniem kanalow filtracji"
-            case 2:
-                compression_method = "Kompresja LZ77 z kodowaniem kanalow filtracji i strategia kompresji danych"
+                compression_method = "DEFLATE"
+            #case 1:
+            #    compression_method = "Kompresja LZ77 z kodowaniem kanalow filtracji"
+            #case 2:
+            #    compression_method = "Kompresja LZ77 z kodowaniem kanalow filtracji i strategia kompresji danych"
 
         match self.data[11]:
             case 0:
-                filter_method = "None"
-            case 1:
-                filter_method = "Sub"
-            case 2:
-                filter_method = "Up"
-            case 3:
-                filter_method = "Average"
-            case 4:
-                filter_method = "Paeth"
+                filter_method = "Adaptive"
+            case _:
+                print("Bledna metoda kompresji")
+            #case 1:
+            #    filter_method = "Sub"
+            #case 2:
+            #    filter_method = "Up"
+            #case 3:
+            #    filter_method = "Average"
+            #case 4:
+            #    filter_method = "Paeth"
         
         match self.data[12]:
             case 0:
@@ -97,19 +99,50 @@ class Chunk:
                "\nMetoda filtrowania: ",filter_method,
                "\nInterlace method (sposob renderowania obrazu): ",interlance_method)
 
+    def decode_PLTE_chunk(self):
+        if(self.length_translated%3!=0):
+            print("nieprawidlowy chunk PLTE")
+        else:
+            full_color_list = []
+            i = 0
+            while self.data:
+                if(i>=self.length_translated-12):
+                    break
+                color_list = []
+                red = self.data[i]
+                green = self.data[i+1]
+                blue = self.data[i+2]
+                color_list.append(red)
+                color_list.append(green)
+                color_list.append(blue)
+                full_color_list.append(color_list)
+                i+=3
+                #print(i)
+            print("liczba wystapien: ", i/3)
+            #print(full_color_list)
+
     def decode_gAMA_chunk(self):
         print("Informacje zawarte w chunku gAMA")
         chunk_gamma = bytes_to_int(self.data)/100000
         print("Wartość gamma odczytana z chunku: ", chunk_gamma)
-        real_gamma = round((1/chunk_gamma),3)
-        print("Faktyczna wartość gamma: ", real_gamma)
+        #real_gamma = round((1/chunk_gamma),3)
+        #print("Faktyczna wartość gamma: ", real_gamma)
 
     def decode_tEXt_chunk(self):
         print("Informacje zawarte w chunku tEXT")
+        keyword=""
+        i = 0
         text=""
         for byte in self.data:
+            if(byte==0):
+                i+=1
+                break
+            else:
+                keyword+=chr(byte)
+                i+=1
+        for byte in self.data[i:]:
             text+=chr(byte)
-        print(text)
+        print("Keyword: ", keyword, "\n", text)
         #print(self.data)
     
     def decode_bKGD_chunk(self):
@@ -132,6 +165,17 @@ class Chunk:
               self.data[3],"/",day,"/",year," ",
               self.data[4],":",self.data[5],":",self.data[6])
     
+    def decode_sRGB_chunk(self):
+        match int.from_bytes(self.data):
+            case 0:
+                print("Rendering intent: Perceptual")
+            case 1:
+                print("Rendering intent: Relative colometric")
+            case 2:
+                print("Rendering intent: Saturation")
+            case 3:
+                print("Rendering intent: Absolute colometric")    
+
     def decode_IEND_chunk(self):
         print("Zawartosc chunka IEND")
 
@@ -205,19 +249,27 @@ def data_anonymization(chunks_list, chunks_list_anon):
         return chunks_list_anon
 
 if __name__ == "__main__":
-    png_file = 'PNG_transparency_demonstration_1.png'
+    png_file = 'pnglogo--povray-3.7--black826--800x600.png'
+    #png_file = 'PNG_transparency_demonstration_1.png'
+    #png_file = 'pnglogo--povray-3.7--black826--800x600.png'
     dec_data = save_decimal_data(png_file)
+    with open("png.txt", "w") as file:
+        json.dump(dec_data, file)
     if(dec_data[0:8]==[137, 80, 78, 71, 13, 10, 26, 10]):
         print("Wartosc pierwszych 8 bajtow pliku:\n", dec_data[0:8])  
         #chunk_decoder(dec_data[8:])
         chunks_list=[]
         chunks_list_anon = []
+        chunks_list_anon.extend(dec_data[0:8])
         chunks_list = chunk_decoder(dec_data[8:],chunks_list)
         for chunk in chunks_list:
             print(chunk.printInfo())
             match chunk.name_translated:
                 case "IHDR":
                     chunk.decode_IHDR_chunk()
+                    print(chunk.printBytes())
+                case "PLTE":
+                    chunk.decode_PLTE_chunk()
                     print(chunk.printBytes())
                 case "cHRM":
                     chunk.decode_cHRM_chunk()
@@ -238,8 +290,19 @@ if __name__ == "__main__":
                 case "IEND":
                     chunk.decode_IEND_chunk()
                     print(chunk.printBytes())
+                case "sRGB":
+                    chunk.decode_sRGB_chunk()
+                    print(chunk.printBytes())
+                case "IDAT":
+                    pass
+                case _:
+                    print(chunk.printBytes())
 
-        #chunks_list_anon = data_anonymization(chunks_list, chunks_list_anon)
+        chunks_list_anon = data_anonymization(chunks_list, chunks_list_anon)
+        #print(len(dec_data))
+        #print(len(chunks_list_anon))
         #print("\n",chunks_list_anon)
+        with open("png_anon.txt", "w") as file:
+            json.dump(chunks_list_anon, file)
     else:
         raise TypeError("File is not a png")
