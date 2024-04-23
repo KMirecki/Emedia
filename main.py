@@ -1,4 +1,8 @@
 import json
+import PIL
+from PIL import Image
+import io
+import matplotlib.pyplot as plt
 
 class Chunk:
     def __init__(self, length, name, length_translated, name_translated, data, checksum):
@@ -23,14 +27,14 @@ class Chunk:
 
     def decode_cHRM_chunk(self):
         print("Informacje zawarte w chunku cHRM")
-        whitePointX = bytes_to_int(self.data[0:4])/100000
-        whitePointY = bytes_to_int(self.data[4:8])/100000
-        redX = bytes_to_int(self.data[8:12])/100000
-        redY = bytes_to_int(self.data[12:16])/100000
-        greenX = bytes_to_int(self.data[16:20])/100000
-        greenY = bytes_to_int(self.data[20:24])/100000
-        blueX = bytes_to_int(self.data[24:28])/100000
-        blueY = bytes_to_int(self.data[28:32])/100000
+        whitePointX = int.from_bytes(self.data[0:4])/100000
+        whitePointY = int.from_bytes(self.data[4:8])/100000
+        redX = int.from_bytes(self.data[8:12])/100000
+        redY = int.from_bytes(self.data[12:16])/100000
+        greenX = int.from_bytes(self.data[16:20])/100000
+        greenY = int.from_bytes(self.data[20:24])/100000
+        blueX = int.from_bytes(self.data[24:28])/100000
+        blueY = int.from_bytes(self.data[28:32])/100000
         print("White Point X: ", whitePointX,
               "\nWhite Point Y: ", whitePointY,
               "\nredX: ", redX,
@@ -43,8 +47,8 @@ class Chunk:
     def decode_IHDR_chunk(self):
         #print(self.data)
         print("Informacje zawarte w chunku IHDR")
-        width = bytes_to_int(self.data[0:4])
-        height = bytes_to_int(self.data[4:8])
+        width = int.from_bytes(self.data[0:4])
+        height = int.from_bytes(self.data[4:8])
         color_type = ""
         compression_method = ""
         filter_method = ""
@@ -123,7 +127,7 @@ class Chunk:
 
     def decode_gAMA_chunk(self):
         print("Informacje zawarte w chunku gAMA")
-        chunk_gamma = bytes_to_int(self.data)/100000
+        chunk_gamma = int.from_bytes(self.data)/100000
         print("Wartość gamma odczytana z chunku: ", chunk_gamma)
         #real_gamma = round((1/chunk_gamma),3)
         #print("Faktyczna wartość gamma: ", real_gamma)
@@ -145,6 +149,17 @@ class Chunk:
         print("Keyword: ", keyword, "\n", text)
         #print(self.data)
     
+    def decode_oFFs_chunk(self):
+        x_position = int.from_bytes(self.data[0:4])
+        y_position = int.from_bytes(self.data[4:8])
+        if(self.data[8]==0):
+            unit = "pixel"
+        elif(self.data[8]==1):
+            unit = "micrometer"
+        print("X position: ",x_position, unit,
+              "\nY position: ",y_position, unit,
+              "\nUnit: ",unit)
+
     def decode_bKGD_chunk(self):
         print("Informacje zawarte w chunku bKGD")
         match len(self.data):
@@ -176,6 +191,20 @@ class Chunk:
             case 3:
                 print("Rendering intent: Absolute colometric")    
 
+    def decode_sBIT_chunk(self):
+        match len(self.data):
+            case 1:
+                print("significant grayscale bits: ", self.data)
+            case 2:
+                print("significant grayscale bits: ",self.data[0],"\nsignificant alpha bits: ",self.data[1])
+            case 3:
+                print("significant red bits: ",self.data[0],"\nsignificant green bits: ",self.data[1],
+                      "\nsignificant blue bits: ", self.data[2])
+            case 4:
+                print("significant red bits: ",self.data[0],"\nsignificant green bits: ",self.data[1],
+                      "\nsignificant blue bits: ", self.data[2], "\nsignificant alpha bits: ",self.data[3])
+
+
     def decode_IEND_chunk(self):
         print("Zawartosc chunka IEND")
 
@@ -202,12 +231,12 @@ def chunk_name(chunk):
     return chunk_name
 
 def chunk_length(chunk):
-    chunk_length = 12+bytes_to_int(chunk)
+    chunk_length = 12+int.from_bytes(chunk)
     return chunk_length
 
-def bytes_to_int(chunk):
-    new_chunk = chunk[0]*pow(256,3)+chunk[1]*pow(256,2)+chunk[2]*256+chunk[3]
-    return new_chunk
+#def bytes_to_int(chunk):
+#    new_chunk = chunk[0]*pow(256,3)+chunk[1]*pow(256,2)+chunk[2]*256+chunk[3]
+#    return new_chunk
 
 #do poprawienia
 #def chunk_checksum(chunk):
@@ -231,7 +260,7 @@ def chunk_decoder(chunk, chunks_list):
         chunk_decoder(remaining_chunk, chunks_list)
     return chunks_list
 
-def data_anonymization(chunks_list, chunks_list_anon):
+def data_anonymization(chunks_list, dec_data_anon):
         #new_data = []
         #for byte in self.data:
         #    byte = random.randint(0,255)
@@ -240,28 +269,40 @@ def data_anonymization(chunks_list, chunks_list_anon):
         #print(new_data)
         #return self.data
         for chunk in chunks_list:
-            if(chunk.name_translated=="IHDR" or chunk.name_translated=="PLTE"
-               or chunk.name_translated=="IDAT" or chunk.name_translated=="IEND"):
-                chunks_list_anon.extend(chunk.length)
-                chunks_list_anon.extend(chunk.name)
-                chunks_list_anon.extend(chunk.data)
-                chunks_list_anon.extend(chunk.checksum)
-        return chunks_list_anon
+            if(chunk.name_translated=="IHDR" or chunk.name_translated=="PLTE" or chunk.name_translated=="IDAT" or chunk.name_translated=="IEND"):
+                dec_data_anon.extend(chunk.length)
+                dec_data_anon.extend(chunk.name)
+                dec_data_anon.extend(chunk.data)
+                dec_data_anon.extend(chunk.checksum)
+        return dec_data_anon
 
 if __name__ == "__main__":
-    png_file = 'pnglogo--povray-3.7--black826--800x600.png'
-    #png_file = 'PNG_transparency_demonstration_1.png'
     #png_file = 'pnglogo--povray-3.7--black826--800x600.png'
+    #png_file = 'PNG_transparency_demonstration_1.png'
+    #png_file = 'pobrane.jpg'
+    png_file = 'pp0n6a08.png'
+    #png_file = 'anon.png'
     dec_data = save_decimal_data(png_file)
+    png_file_signature = [137, 80, 78, 71, 13, 10, 26, 10]
     with open("png.txt", "w") as file:
         json.dump(dec_data, file)
-    if(dec_data[0:8]==[137, 80, 78, 71, 13, 10, 26, 10]):
-        print("Wartosc pierwszych 8 bajtow pliku:\n", dec_data[0:8])  
+    
+    chunks_list=[]
+    chunks_list_anon = []
+    dec_data_anon = []
+    dec_data_anon.extend(dec_data[0:8])
+    if(dec_data[0:8]==png_file_signature):
+        print("Pierwsze 8 bajtow pliku - sygnatura PNG:\n", dec_data[0:8])  
         #chunk_decoder(dec_data[8:])
-        chunks_list=[]
-        chunks_list_anon = []
-        chunks_list_anon.extend(dec_data[0:8])
         chunks_list = chunk_decoder(dec_data[8:],chunks_list)
+        dec_data_anon = data_anonymization(chunks_list, dec_data_anon)
+        chunks_list_anon = chunk_decoder(dec_data_anon[8:], chunks_list_anon)
+        #print(len(dec_data))
+        #print(len(dec_data_anon))
+        #print("\n",chunks_list_anon)
+        with open("png_anon.txt", "w") as file:
+            json.dump(dec_data_anon, file)
+        #for chunk in chunks_list_anon:
         for chunk in chunks_list:
             print(chunk.printInfo())
             match chunk.name_translated:
@@ -287,6 +328,12 @@ if __name__ == "__main__":
                     #chunk.data_anonymization()
                     chunk.decode_tEXt_chunk()
                     print(chunk.printBytes())
+                case "sBIT":
+                    chunk.decode_sBIT_chunk()
+                    print(chunk.printBytes())
+                case "oFFs":
+                    chunk.decode_oFFs_chunk()
+                    print(chunk.printBytes())
                 case "IEND":
                     chunk.decode_IEND_chunk()
                     print(chunk.printBytes())
@@ -298,11 +345,19 @@ if __name__ == "__main__":
                 case _:
                     print(chunk.printBytes())
 
-        chunks_list_anon = data_anonymization(chunks_list, chunks_list_anon)
-        #print(len(dec_data))
-        #print(len(chunks_list_anon))
-        #print("\n",chunks_list_anon)
-        with open("png_anon.txt", "w") as file:
-            json.dump(chunks_list_anon, file)
+        data_bytes = bytes(dec_data)
+        data_bytes_anon = bytes(dec_data_anon)
+        image = Image.open(io.BytesIO(data_bytes))
+        image_anon = Image.open(io.BytesIO(data_bytes_anon))
+        plt.subplot(1, 2, 1)
+        plt.imshow(image)
+        plt.title('Image')
+        plt.subplot(1, 2, 2)
+        plt.imshow(image_anon)
+        plt.title('Anonymous Image')
+        plt.show()
+        #image = image.save("file.png")
+        #image_anon = image_anon.save("anon.png")
+
     else:
         raise TypeError("File is not a png")
