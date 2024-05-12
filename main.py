@@ -120,10 +120,19 @@ class Chunk:
                 color_list.append(green)
                 color_list.append(blue)
                 full_color_list.append(color_list)
+                print("iteration: ",int((i/3)+1)," rgb values: ",color_list)
                 i+=3
                 #print(i)
-            print("liczba wystapien: ", i/3)
+            #print("liczba wystapien: ", i/3)
             #print(full_color_list)
+            palette = [(r / 255, g / 255, b / 255) for r, g, b in full_color_list]
+            fig, ax = plt.subplots(1, 1, figsize=(16, 2))
+            for i, color in enumerate(palette):
+                ax.add_patch(plt.Rectangle((i, 0), 1, 1, color=color, edgecolor='black'))
+            ax.set_xlim(0, len(palette))
+            ax.set_ylim(0, 1)
+            ax.axis('off')
+            plt.show()
 
     def decode_gAMA_chunk(self):
         print("Informacje zawarte w chunku gAMA")
@@ -311,7 +320,7 @@ if __name__ == "__main__":
                     print(chunk.printBytes())
                 case "PLTE":
                     chunk.decode_PLTE_chunk()
-                    print(chunk.printBytes())
+                    #print(chunk.printBytes())
                 case "cHRM":
                     chunk.decode_cHRM_chunk()
                     print(chunk.printBytes())
@@ -337,11 +346,13 @@ if __name__ == "__main__":
                 case "IEND":
                     chunk.decode_IEND_chunk()
                     print(chunk.printBytes())
+                    break
                 case "sRGB":
                     chunk.decode_sRGB_chunk()
                     print(chunk.printBytes())
                 case "IDAT":
-                    pass
+                    if(chunk.length_translated==0):
+                        break
                 case _:
                     print(chunk.printBytes())
 
