@@ -1,8 +1,9 @@
 import json
-import PIL
 from PIL import Image
 import io
 import matplotlib.pyplot as plt
+import cv2
+import numpy as np
 
 class Chunk:
     def __init__(self, length, name, length_translated, name_translated, data, checksum):
@@ -15,7 +16,6 @@ class Chunk:
     
     def printInfo(self):
         return "\nDługość chunku:\t" + str(self.length_translated) + "\nNazwa chunku:\t" + str(self.name_translated)
-        #+ "\nSuma kontrolna CRC32:\t" + str(self.checksum)
     
     def printBytes(self):
         bytes_list = []
@@ -45,7 +45,6 @@ class Chunk:
               "\nblueY: ", blueY)
 
     def decode_IHDR_chunk(self):
-        #print(self.data)
         print("Informacje zawarte w chunku IHDR")
         width = int.from_bytes(self.data[0:4])
         height = int.from_bytes(self.data[4:8])
@@ -66,28 +65,17 @@ class Chunk:
             case 6:
                 color_type = "Truecolor and alpha"
         
-        #niepotwierdzone
         match self.data[10]:
             case 0:
                 compression_method = "DEFLATE"
-            #case 1:
-            #    compression_method = "Kompresja LZ77 z kodowaniem kanalow filtracji"
-            #case 2:
-            #    compression_method = "Kompresja LZ77 z kodowaniem kanalow filtracji i strategia kompresji danych"
+            case _:
+                print("nieprawidłowa metoda kompresji")
 
         match self.data[11]:
             case 0:
                 filter_method = "Adaptive"
             case _:
-                print("Bledna metoda kompresji")
-            #case 1:
-            #    filter_method = "Sub"
-            #case 2:
-            #    filter_method = "Up"
-            #case 3:
-            #    filter_method = "Average"
-            #case 4:
-            #    filter_method = "Paeth"
+                print("nieprawidlowa metoda filtrowania")
         
         match self.data[12]:
             case 0:
@@ -227,10 +215,8 @@ def save_decimal_data(png_file):
 
     png_check = decimal_data[0:8]
     if png_check == [137, 80, 78, 71, 13, 10, 26, 10]:
-        # print("It's a PNG.")
         return decimal_data
     else:
-        # print("File is not a PNG.")
         raise ValueError("File is not a PNG")
 
 def chunk_name(chunk):
@@ -243,54 +229,39 @@ def chunk_length(chunk):
     chunk_length = 12+int.from_bytes(chunk)
     return chunk_length
 
-#def bytes_to_int(chunk):
-#    new_chunk = chunk[0]*pow(256,3)+chunk[1]*pow(256,2)+chunk[2]*256+chunk[3]
-#    return new_chunk
-
-#do poprawienia
-#def chunk_checksum(chunk):
-#    chunk_checksum = 12+chunk[0]*pow(256,3)+chunk[1]*pow(256,2)+chunk[2]*256+chunk[3]
-#    return chunk_checksum
-
 def chunk_decoder(chunk, chunks_list):
     if(len(chunk)>=12):
-        #chunk_info = ""
         length = chunk[0:4]
         length_translated = chunk_length(chunk[0:4])
-        #data_length=length-12
         name = chunk[4:8]
         name_translated = chunk_name(chunk[4:8])
         data = chunk[8:length_translated-4]
         checksum = chunk[length_translated-4:length_translated]
         new_chunk = Chunk(length,name,length_translated,name_translated,data,checksum)
         chunks_list.append(new_chunk)
-        #chunk_info+="dlugosc chunku "+str(length)+" nazwa chunku "+str(name)
         remaining_chunk=chunk[length_translated:]
         chunk_decoder(remaining_chunk, chunks_list)
     return chunks_list
 
 def data_anonymization(chunks_list, dec_data_anon):
-        #new_data = []
-        #for byte in self.data:
-        #    byte = random.randint(0,255)
-        #    new_data.append(byte)
-        #self.data=new_data
-        #print(new_data)
-        #return self.data
-        for chunk in chunks_list:
-            if(chunk.name_translated=="IHDR" or chunk.name_translated=="PLTE" or chunk.name_translated=="IDAT" or chunk.name_translated=="IEND"):
-                dec_data_anon.extend(chunk.length)
-                dec_data_anon.extend(chunk.name)
-                dec_data_anon.extend(chunk.data)
-                dec_data_anon.extend(chunk.checksum)
-        return dec_data_anon
+    for chunk in chunks_list:
+        if(chunk.name_translated=="IHDR" or chunk.name_translated=="PLTE" or chunk.name_translated=="IDAT" or chunk.name_translated=="IEND"):
+            dec_data_anon.extend(chunk.length)
+            dec_data_anon.extend(chunk.name)
+            dec_data_anon.extend(chunk.data)
+            dec_data_anon.extend(chunk.checksum)
+    return dec_data_anon
 
 if __name__ == "__main__":
     #png_file = 'pnglogo--povray-3.7--black826--800x600.png'
     #png_file = 'PNG_transparency_demonstration_1.png'
+    #png_file = 'pobrane.png'
+    #png_file = 'pobrane (1).png'
+    png_file = 'Lenna_(test_image).png'
     #png_file = 'pobrane.jpg'
-    png_file = 'pp0n6a08.png'
+    #png_file = 'pp0n6a08.png'
     #png_file = 'anon.png'
+    #png_file = '12-tree-png-image-download-picture-thumb.png'
     dec_data = save_decimal_data(png_file)
     png_file_signature = [137, 80, 78, 71, 13, 10, 26, 10]
     with open("png.txt", "w") as file:
@@ -334,7 +305,6 @@ if __name__ == "__main__":
                     chunk.decode_tIME_chunk()
                     print(chunk.printBytes())
                 case "tEXt":
-                    #chunk.data_anonymization()
                     chunk.decode_tEXt_chunk()
                     print(chunk.printBytes())
                 case "sBIT":
@@ -360,13 +330,71 @@ if __name__ == "__main__":
         data_bytes_anon = bytes(dec_data_anon)
         image = Image.open(io.BytesIO(data_bytes))
         image_anon = Image.open(io.BytesIO(data_bytes_anon))
+
+        #fast fourier transform
+        img = cv2.imread(png_file, cv2.IMREAD_GRAYSCALE)
+        f = np.fft.fft2(img)
+        fshift = np.fft.fftshift(f)
+        magnitude_spectrum = 20 * np.log(np.abs(fshift))
+        phase_spectrum = np.angle(fshift)
+
+        #usunięcie niskich częstotliwości i zostawienie x procent najwyższych częstotliwości
+        rows, cols = img.shape
+        crow, ccol = rows // 2 , cols // 2
+        mask = np.zeros((rows, cols), np.uint8)
+        percent = 0.5
+        size = int(percent * rows * cols)
+        sorted_indices = np.unravel_index(np.argsort(np.abs(fshift).ravel())[::-1], fshift.shape)
+        top_indices = (sorted_indices[0][:size], sorted_indices[1][:size])
+        mask[top_indices] = 1
+        fshift_filtered = fshift * mask
+
+        #odtworzenie obrazu odwrotną transformatą fouriera
+        magnitude_spectrum_filtered = 20 * np.log(np.abs(fshift_filtered))
+        f_ishift = np.fft.ifftshift(fshift_filtered)
+        img_ifft = np.fft.ifft2(f_ishift)
+        img_ifft = np.abs(img_ifft)
+
+        #różnica między oryginalnym obrazem a odtworzonym
+        img_diff = np.abs(img - img_ifft)
+
+        plt.figure()
         plt.subplot(1, 2, 1)
         plt.imshow(image)
         plt.title('Image')
+        plt.axis('off')
         plt.subplot(1, 2, 2)
         plt.imshow(image_anon)
         plt.title('Anonymous Image')
+        plt.axis('off')
+
+        plt.figure()
+        plt.subplot(2,3,1)
+        plt.imshow(img, cmap='gray')
+        plt.title('Image grayscale')
+        plt.axis('off')
+        plt.subplot(2,3,2)
+        plt.imshow(magnitude_spectrum, cmap='gray')
+        plt.title('magnitude')
+        plt.axis('off')
+        plt.subplot(2,3,3)
+        plt.imshow(phase_spectrum, cmap='gray')
+        plt.title('phase')
+        plt.axis('off')
+        plt.subplot(2,3,5)
+        plt.imshow(img_ifft, cmap='gray')
+        plt.title('restored image')
+        plt.axis('off')
+        plt.subplot(2,3,4)
+        plt.imshow(magnitude_spectrum_filtered, cmap='gray')
+        plt.title('magnitude '+str(percent*100)+'%')
+        plt.axis('off')
+        plt.subplot(2,3,6)
+        plt.imshow(img_diff, cmap='gray')
+        plt.title('difference')
+        plt.axis('off')
         plt.show()
+
         #image = image.save("file.png")
         #image_anon = image_anon.save("anon.png")
 
