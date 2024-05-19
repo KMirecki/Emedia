@@ -265,13 +265,13 @@ if __name__ == "__main__":
     #png_file = 'Lenna_(test_image).png'
     #png_file = 'image.png'
     #png_file = 'pobrane.jpg'
-    #png_file = 'pp0n6a08.png'
+    png_file = 'pp0n6a08.png'
     #png_file = 'anon.png'
-    png_file = '12-tree-png-image-download-picture-thumb.png'
+    #png_file = '12-tree-png-image-download-picture-thumb.png'
     dec_data = save_decimal_data(png_file)
     png_file_signature = [137, 80, 78, 71, 13, 10, 26, 10]
-    with open("png.txt", "w") as file:
-        json.dump(dec_data, file)
+    #with open("png.txt", "w") as file:
+    #    json.dump(dec_data, file)
     
     chunks_list=[]
     chunks_list_anon = []
@@ -286,8 +286,8 @@ if __name__ == "__main__":
         #print(len(dec_data))
         #print(len(dec_data_anon))
         #print("\n",chunks_list_anon)
-        with open("png_anon.txt", "w") as file:
-            json.dump(dec_data_anon, file)
+        #with open("png_anon.txt", "w") as file:
+        #    json.dump(dec_data_anon, file)
         #for chunk in chunks_list_anon:
         for chunk in chunks_list:
             print(chunk.printInfo())
