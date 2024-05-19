@@ -7,6 +7,7 @@ import numpy as np
 
 class Chunk:
     def __init__(self, length, name, length_translated, name_translated, data, checksum):
+        #wartości liczbowe/tekstowe zamiast listy bajtów
         self.length_translated = length_translated
         self.name_translated = name_translated
         self.length = length
@@ -17,6 +18,7 @@ class Chunk:
     def printInfo(self):
         return "\nDługość chunku:\t" + str(self.length_translated) + "\nNazwa chunku:\t" + str(self.name_translated)
     
+    #wypisanie wszystkich bajtów chunka
     def printBytes(self):
         bytes_list = []
         bytes_list.extend(self.length)
@@ -25,6 +27,7 @@ class Chunk:
         bytes_list.extend(self.checksum)
         return bytes_list
 
+    #chromatycznosc
     def decode_cHRM_chunk(self):
         print("Informacje zawarte w chunku cHRM")
         whitePointX = int.from_bytes(self.data[0:4])/100000
@@ -146,6 +149,7 @@ class Chunk:
         print("Keyword: ", keyword, "\n", text)
         #print(self.data)
     
+    #pozycja wzgledem punktu odniesienia
     def decode_oFFs_chunk(self):
         x_position = int.from_bytes(self.data[0:4])
         y_position = int.from_bytes(self.data[4:8])
@@ -157,6 +161,7 @@ class Chunk:
               "\nY position: ",y_position, unit,
               "\nUnit: ",unit)
 
+    #kolor tla
     def decode_bKGD_chunk(self):
         print("Informacje zawarte w chunku bKGD")
         match len(self.data):
@@ -180,14 +185,15 @@ class Chunk:
     def decode_sRGB_chunk(self):
         match int.from_bytes(self.data):
             case 0:
-                print("Rendering intent: Perceptual")
+                print("Rendering intent: Perceptual")           #do fotografii
             case 1:
-                print("Rendering intent: Relative colometric")
+                print("Rendering intent: Relative colometric")  #logo
             case 2:
-                print("Rendering intent: Saturation")
+                print("Rendering intent: Saturation")           #wykresy
             case 3:
-                print("Rendering intent: Absolute colometric")    
+                print("Rendering intent: Absolute colometric")  #preview dla innych urzadzen  
 
+    #oryginalna liczba istotnych bitow dla każdego kanału koloru (informacja dla dekodera żeby unkiknac strat)   
     def decode_sBIT_chunk(self):
         match len(self.data):
             case 1:
@@ -200,7 +206,6 @@ class Chunk:
             case 4:
                 print("significant red bits: ",self.data[0],"\nsignificant green bits: ",self.data[1],
                       "\nsignificant blue bits: ", self.data[2], "\nsignificant alpha bits: ",self.data[3])
-
 
     def decode_IEND_chunk(self):
         print("Zawartosc chunka IEND")
@@ -257,11 +262,12 @@ if __name__ == "__main__":
     #png_file = 'PNG_transparency_demonstration_1.png'
     #png_file = 'pobrane.png'
     #png_file = 'pobrane (1).png'
-    png_file = 'Lenna_(test_image).png'
+    #png_file = 'Lenna_(test_image).png'
+    #png_file = 'image.png'
     #png_file = 'pobrane.jpg'
     #png_file = 'pp0n6a08.png'
     #png_file = 'anon.png'
-    #png_file = '12-tree-png-image-download-picture-thumb.png'
+    png_file = '12-tree-png-image-download-picture-thumb.png'
     dec_data = save_decimal_data(png_file)
     png_file_signature = [137, 80, 78, 71, 13, 10, 26, 10]
     with open("png.txt", "w") as file:
